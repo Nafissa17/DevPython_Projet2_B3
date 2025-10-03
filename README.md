@@ -17,7 +17,7 @@ Modéliser un **compte bancaire** afin d'améliorer vos compétences en **progra
   1. **Retrait** (withdraw money)  
   2. **Dépôt** (deposit money)  
   3. **Affichage des informations** du compte (dump)
-
+     
 ---
 
 ## 🏦 Exemple d'utilisation
@@ -36,5 +36,23 @@ rachel_account.dump()
 
 ---
 
-## ✨ Fonctionnalités supplémentaires
+## 📌 Fonctionnalités Supplémentaires
+Nous avons rajouté les fonctionnalités suivantes :
+
+  - **Nom du titulaire**  
+  - **Numéro de compte**  
+  - **Solde actuel** (par défaut : **2000**)
+
+---
+
+
+
+
+
+
+
+
+
+
+✨
 
