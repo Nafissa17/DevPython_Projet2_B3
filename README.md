@@ -45,16 +45,7 @@ rachel_account.dump()
 
 
 
----
 
-## ✨ Fonctionnalités Supplémentaires
-Nous avons rajouté les fonctionnalités suivantes :
-
-  - **Nom du titulaire**  
-  - **Numéro de compte**  
-  - **Solde actuel** (par défaut : **2000**)
-
----
 
 
 
