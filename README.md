@@ -33,3 +33,8 @@ ross_account.dump()
 
 rachel_account.dump()
 # Rachel, 1945729572, 3450
+
+---
+
+## ✨ Fonctionnalités supplémentaires
+
