@@ -20,6 +20,15 @@ Modéliser un **compte bancaire** afin d'améliorer vos compétences en **progra
      
 ---
 
+## 📌 Fonctionnalités Supplémentaires
+Nous avons rajouté les fonctionnalités suivantes :
+
+  - **Nom du titulaire**  
+  - **Numéro de compte**  
+  - **Solde actuel** (par défaut : **2000**)
+
+---
+
 ## 🏦 Exemple d'utilisation
 
 Instancier deux comptes bancaires pour **Ross** et **Rachel** avec des numéros de compte aléatoires.  
@@ -34,16 +43,7 @@ ross_account.dump()
 rachel_account.dump()
 # Rachel, 1945729572, 3450
 
----
 
-## 📌 Fonctionnalités Supplémentaires
-Nous avons rajouté les fonctionnalités suivantes :
-
-  - **Nom du titulaire**  
-  - **Numéro de compte**  
-  - **Solde actuel** (par défaut : **2000**)
-
----
 
 
 
