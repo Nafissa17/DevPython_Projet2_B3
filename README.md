@@ -20,7 +20,7 @@ Modéliser un **compte bancaire** afin d'améliorer vos compétences en **progra
      
 ---
 
-## 📌 Fonctionnalités Supplémentaires
+## ✨ Fonctionnalités Supplémentaires
 Nous avons rajouté les fonctionnalités suivantes :
 
   - **Nom du titulaire**  
@@ -45,6 +45,16 @@ rachel_account.dump()
 
 
 
+---
+
+## ✨ Fonctionnalités Supplémentaires
+Nous avons rajouté les fonctionnalités suivantes :
+
+  - **Nom du titulaire**  
+  - **Numéro de compte**  
+  - **Solde actuel** (par défaut : **2000**)
+
+---
 
 
 
@@ -53,6 +63,4 @@ rachel_account.dump()
 
 
 
-
-✨
 
