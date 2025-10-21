@@ -1,6 +1,12 @@
 import tkinter as tk
 from tkinter import messagebox, simpledialog
 import matplotlib.pyplot as plt
+import datetime
+import json
+import os
+
+# === Fichier de données ===
+DATA_FILE = "accounts.json"
 
 # === Classe Compte ===
 class Account:
@@ -9,18 +15,26 @@ class Account:
         self.account_number = account_number
         self.password = password
         self.balance = balance
-        self.historique = []
+        self.historique = []  # {"date": ..., "operation": ..., "montant": ...}
         self.output_widget = output_widget
         self.daily_withdrawn = 0  # Suivi des retraits journaliers
 
     def _log(self, message, reset=False):
         if self.output_widget:
             if reset:
-                self.output_widget.delete("1.0", "end")  # vide avant chaque message
+                self.output_widget.delete("1.0", "end")
             self.output_widget.insert("end", message + "\n")
             self.output_widget.see("end")
         else:
             print(message)
+
+    def _add_history(self, operation, amount):
+        now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        self.historique.append({
+            "date": now,
+            "operation": operation,
+            "montant": amount
+        })
 
     def withdraw(self, amount):
         if amount > self.balance:
@@ -30,20 +44,18 @@ class Account:
         else:
             self.balance -= amount
             self.daily_withdrawn += amount
-            self.historique.append(f"-{amount}€ retirés")
+            self._add_history("Retrait", -amount)
             self._log(f"💸 {amount}€ retirés. Nouveau solde: {self.balance}€", reset=True)
+            save_data()
 
     def deposit(self, amount):
         if amount <= 0:
             self._log("⚠️ Montant invalide.", reset=True)
         else:
             self.balance += amount
-            self.historique.append(f"+{amount}€ déposés")
+            self._add_history("Dépôt", amount)
             self._log(f"💰 {amount}€ déposés. Nouveau solde: {self.balance}€", reset=True)
-
-    def dump(self):
-        self._log(f"\n👤 {self.name}, Compte n°{self.account_number}, Solde: {self.balance}€", reset=True)
-        self._log(f"📜 Historique: {self.historique}", reset=False)
+            save_data()
 
     def transfer_to(self, target_account, amount, external=False):
         frais = 0.5 if external else 0
@@ -57,14 +69,56 @@ class Account:
 
         self.balance -= total_amount
         target_account.balance += amount
+
         if external:
-            self.historique.append(f"Virement externe de -{amount}€ + {frais}€ frais vers {target_account.name} ({target_account.account_number})")
-            target_account.historique.append(f"Virement reçu +{amount}€ de {self.name} ({self.account_number})")
+            self._add_history(f"Virement externe vers {target_account.name}", -amount - frais)
+            target_account._add_history(f"Virement reçu de {self.name}", amount)
             self._log(f"🌍 Virement externe de {amount}€ effectué (+{frais}€ frais) vers {target_account.name}", reset=True)
         else:
-            self.historique.append(f"Virement de -{amount}€ vers {target_account.name} ({target_account.account_number})")
-            target_account.historique.append(f"Virement reçu +{amount}€ de {self.name} ({self.account_number})")
-            self._log(f"🔄 Virement de {amount}€ effectué vers {target_account.name} ({target_account.account_number})", reset=True)
+            self._add_history(f"Virement vers {target_account.name}", -amount)
+            target_account._add_history(f"Virement reçu de {self.name}", amount)
+            self._log(f"🔄 Virement de {amount}€ effectué vers {target_account.name}", reset=True)
+        save_data()
+
+    def dump(self):
+        self._log(f"\n👤 {self.name}, Compte n°{self.account_number}, Solde: {self.balance}€", reset=True)
+        for h in self.historique:
+            self._log(f"{h['date']} | {h['operation']} | {h['montant']}€", reset=False)
+
+# === Sauvegarde / Chargement ===
+def save_data():
+    data = {"accounts": {}, "livrets": {}}
+    for num, acc in accounts.items():
+        data["accounts"][num] = {
+            "name": acc.name,
+            "account_number": acc.account_number,
+            "password": acc.password,
+            "balance": acc.balance,
+            "historique": acc.historique
+        }
+    for num, liv in livrets.items():
+        data["livrets"][num] = {
+            "name": liv.name,
+            "account_number": liv.account_number,
+            "password": liv.password,
+            "balance": liv.balance,
+            "historique": liv.historique
+        }
+    with open(DATA_FILE, "w") as f:
+        json.dump(data, f, indent=4)
+
+def load_data():
+    global accounts, livrets
+    if not os.path.exists(DATA_FILE):
+        return
+    with open(DATA_FILE, "r") as f:
+        data = json.load(f)
+    for num, acc in data.get("accounts", {}).items():
+        accounts[num] = Account(acc["name"], acc["account_number"], acc["password"], acc["balance"])
+        accounts[num].historique = acc.get("historique", [])
+    for num, liv in data.get("livrets", {}).items():
+        livrets[num] = Account(liv["name"], liv["account_number"], liv["password"], liv["balance"])
+        livrets[num].historique = liv.get("historique", [])
 
 # === Interface Tkinter ===
 root = tk.Tk()
@@ -73,18 +127,39 @@ root.geometry("900x650")
 root.configure(bg="black")
 
 main_frame = tk.Frame(root, bg="black")
-main_frame.place(relx=0.5, rely=0.5, anchor="center")
+main_frame.pack(fill="both", expand=True)
+
+log_text = tk.Text(root, bg="black", fg="#C0A060",
+                   font=("Consolas", 12), relief="flat")
 
 accounts = {}
 livrets = {}
 current_account = None
 selected_account = None
 
-main_frame = tk.Frame(root, bg="black")
-main_frame.pack(fill="both", expand=True)
+# === Graphique des comptes ===
+def show_graph():
+    if not selected_account.historique:
+        messagebox.showinfo("Info", "Aucune opération à afficher.")
+        return
 
-log_text = tk.Text(root, bg="black", fg="#C0A060",
-                   font=("Consolas", 12), relief="flat")
+    labels = []
+    values = []
+    solde = 0
+    for i, h in enumerate(selected_account.historique):
+        labels.append(f"Opération {i+1}")
+        solde += h["montant"]
+        values.append(solde)
+
+    plt.figure(figsize=(10,6))
+    plt.plot(labels, values, marker='o', label="Solde")
+    plt.title("Évolution du compte")
+    plt.ylabel("Montant (€)")
+    plt.xticks(rotation=45)
+    plt.grid(True)
+    plt.legend()
+    plt.tight_layout()
+    plt.show()
 
 # === Pages ===
 def show_login_page():
@@ -115,16 +190,10 @@ def open_login():
         global current_account
         num = entry_num.get()
         pwd = entry_pwd.get()
-
-        if not (num.isdigit() and len(num) == 9):
-            messagebox.showerror("Erreur", "Le numéro de compte doit contenir exactement 9 chiffres.")
-            return
-        if not (pwd.isdigit() and len(pwd) == 4):
-            messagebox.showerror("Erreur", "Le mot de passe doit contenir exactement 4 chiffres.")
-            return
-
         if num in accounts and accounts[num].password == pwd:
             current_account = accounts[num]
+            current_account.output_widget = log_text  # ⚡ lier log_text au compte courant
+            log_text.delete("1.0", "end")  # ⚡ vider les logs précédents
             messagebox.showinfo("Succès", f"Bienvenue {accounts[num].name} !")
             login_win.destroy()
             show_account_choice()
@@ -133,69 +202,6 @@ def open_login():
 
     tk.Button(login_win, text="Se connecter", command=try_login,
               bg="#C0A060", fg="black", font=("Arial", 12, "bold"), relief="flat").pack(pady=15)
-
-# === Graphique de l'évolution des comptes ===
-def show_graph():
-    if not current_account.historique:
-        messagebox.showinfo("Info", "Aucune opération à afficher.")
-        return
-
-    solde_courant = current_account.balance
-    solde_livret = livrets[current_account.account_number].balance if current_account.account_number in livrets else 0
-
-    labels = []
-    compte_courant_values = []
-    livret_values = []
-    total_values = []
-
-    courant = solde_courant - sum(
-        float(h.split("€")[0].replace("+","").replace("-","")) for h in current_account.historique
-    )
-    courant_tmp = courant
-    livret_tmp = solde_livret
-
-    for i, h in enumerate(current_account.historique):
-        labels.append(f"Opération {i+1}")
-        if "dép" in h.lower() or "retir" in h.lower():
-            montant = float(h.split("€")[0].replace("+","").replace("-",""))
-            if h.startswith("+"):
-                courant_tmp += montant
-            else:
-                courant_tmp -= montant
-        elif "Virement" in h:
-            montant = float(h.split("€")[0].replace("+","").replace("-",""))
-            if "vers" in h and current_account.name in h:
-                courant_tmp += montant
-            elif "vers" in h:
-                courant_tmp -= montant
-
-        compte_courant_values.append(courant_tmp)
-
-        if current_account.account_number in livrets:
-            livret_tmp = livrets[current_account.account_number].balance
-            for lh in livrets[current_account.account_number].historique:
-                montant = float(lh.split("€")[0].replace("+","").replace("-",""))
-                if "reçu" in lh.lower():
-                    livret_tmp += montant
-                elif "Virement de" in lh:
-                    livret_tmp -= montant
-            livret_values.append(livret_tmp)
-        else:
-            livret_values.append(0)
-
-        total_values.append(compte_courant_values[-1] + livret_values[-1])
-
-    plt.figure(figsize=(10,6))
-    plt.plot(labels, compte_courant_values, marker='o', label="Compte Courant")
-    plt.plot(labels, livret_values, marker='o', label="Livret A")
-    plt.plot(labels, total_values, marker='o', label="Solde Total")
-    plt.title("Évolution des comptes par opération")
-    plt.ylabel("Montant (€)")
-    plt.xticks(rotation=45)
-    plt.grid(True)
-    plt.legend()
-    plt.tight_layout()
-    plt.show()
 
 # === Choix de compte ===
 def show_account_choice():
@@ -225,12 +231,16 @@ def show_account_choice():
     def open_courant():
         global selected_account
         selected_account = current_account
+        selected_account.output_widget = log_text  # ⚡ lier log_text
+        log_text.delete("1.0", "end")
         open_dashboard()
 
     def open_livret():
         global selected_account
         if current_account.account_number in livrets:
             selected_account = livrets[current_account.account_number]
+            selected_account.output_widget = log_text
+            log_text.delete("1.0", "end")
             open_dashboard()
         else:
             res = messagebox.askyesno("Livret A", "Aucun Livret A. Voulez-vous en créer un ?")
@@ -242,6 +252,7 @@ def show_account_choice():
                                  output_widget=log_text)
                 livrets[current_account.account_number] = livret
                 selected_account = livret
+                save_data()
                 open_dashboard()
 
     tk.Button(main_frame, text="💼 Compte Courant", command=open_courant, **btn_style).pack(pady=10)
@@ -264,11 +275,13 @@ def open_dashboard():
 
     def deposit_money():
         amt = simpledialog.askfloat("Dépôt", "Montant à déposer :")
-        if amt: selected_account.deposit(float(amt))
+        if amt: 
+            selected_account.deposit(float(amt))
 
     def withdraw_money():
         amt = simpledialog.askfloat("Retrait", "Montant à retirer :")
-        if amt: selected_account.withdraw(float(amt))
+        if amt: 
+            selected_account.withdraw(float(amt))
 
     def transfer_money():
         transfer_win = tk.Toplevel(root)
@@ -299,9 +312,12 @@ def open_dashboard():
             if not target_num or target_num not in accounts:
                 messagebox.showerror("Erreur", "Compte destinataire introuvable.")
                 return
-            target = accounts[target_num]
-            selected_account.transfer_to(target, float(amt), external=True)
-            transfer_win.destroy()
+
+            frais = 0.5
+            if messagebox.askyesno("Frais virement", f"Un frais de {frais}€ sera ajouté au virement. Continuer ?"):
+                target = accounts[target_num]
+                selected_account.transfer_to(target, float(amt), external=True)
+                transfer_win.destroy()
 
         tk.Button(transfer_win, text="📂 Virement vers Livret A/Compte Courant", command=virement_livret,
                   bg="#C0A060", fg="black", font=("Arial", 12, "bold"), relief="flat").pack(pady=10)
@@ -321,9 +337,12 @@ def open_dashboard():
     tk.Button(main_frame, text="📊 Voir Graphique", command=show_graph, **btn_style).pack(pady=5)
     tk.Button(main_frame, text="⬅️ Retour choix de compte", command=quit_account, **btn_style).pack(pady=15)
 
-# === Comptes de test ===
-accounts["950201848"] = Account("Ross", "950201848", "1350", balance=2000, output_widget=log_text)  
-accounts["194572957"] = Account("Rachel", "194572957", "3450", balance=2000, output_widget=log_text)
+# === Chargement des comptes existants ou création test ===
+load_data()
+if not accounts:
+    accounts["950201848"] = Account("Ross", "950201848", "1350", balance=2000, output_widget=log_text)  
+    accounts["194572957"] = Account("Rachel", "194572957", "3450", balance=2000, output_widget=log_text)
+    save_data()
 
 # === Lancement ===
 show_login_page()
