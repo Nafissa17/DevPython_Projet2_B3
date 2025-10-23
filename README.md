@@ -26,6 +26,8 @@ Nous avons rajouté les fonctionnalités suivantes :
   - **Nom du titulaire**  
   - **Numéro de compte**  
   - **Solde actuel** (par défaut : **2000**)
+  - **Sauvegarde des données avec un fichier json**
+  - **Frais de virement externe de 0,5 centimes**
 
 ---
 
