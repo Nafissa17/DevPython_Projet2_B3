@@ -24,10 +24,13 @@ Modéliser un **compte bancaire** afin d'améliorer vos compétences en **progra
 Nous avons rajouté les fonctionnalités suivantes :
 
   - **Page de connexion** 
+  -**Nom du titulaire**
+  -**Numéro de compte**
+  -**Solde actuel (par défaut : 2000)**
   - **Sauvegarde des données avec un fichier json**
   - **Frais de virement externe de 0,5 centimes**
   - **Limite de retrait journalière de 1000 euros**
-  - **Historique pour l'utilisateur avec toutes ses dernières et récentes transactions**
+  - **Historique de l'utilisateur**
   - **Graphique pour visualiser les transactions**
   - **Mise en place d'un livret A**
   - **Virement possible en interne vers le livret A mais également vers un compte externe**
