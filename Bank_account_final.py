@@ -1,25 +1,32 @@
-import tkinter as tk
-from tkinter import messagebox, simpledialog
-import matplotlib.pyplot as plt
-import datetime
-import json
-import os
+import tkinter as tk                       # Import de Tkinter pour l'interface graphique
+from tkinter import messagebox, simpledialog  # Boîtes de dialogue et messages
+import matplotlib.pyplot as plt           # Pour tracer les graphiques
+import datetime                            # Pour gérer les dates et heures
+import json                                # Pour la sauvegarde et le chargement en JSON
+import os                                  # Pour vérifier l'existence de fichiers
 
 # === Fichier de données ===
-DATA_FILE = "accounts.json"
+DATA_FILE = "accounts.json"               # Nom du fichier JSON pour stocker les comptes
 
 # === Classe Compte ===
 class Account:
+    """
+    Classe représentant un compte bancaire avec fonctionnalités de dépôt, retrait,
+    virement, historique et affichage des opérations.
+    """
     def __init__(self, name, account_number, password, balance=0, output_widget=None):
-        self.name = name
-        self.account_number = account_number
-        self.password = password
-        self.balance = balance
-        self.historique = []  # {"date": ..., "operation": ..., "montant": ...}
-        self.output_widget = output_widget
-        self.daily_withdrawn = 0  # Suivi des retraits journaliers
+        self.name = name                      # Nom du propriétaire
+        self.account_number = account_number  # Numéro du compte
+        self.password = password              # Mot de passe du compte
+        self.balance = balance                # Solde initial
+        self.historique = []                  # Historique des opérations
+        self.output_widget = output_widget    # Widget Text pour afficher les logs
+        self.daily_withdrawn = 0              # Limite de retrait journalier
 
     def _log(self, message, reset=False):
+        """
+        Affiche un message dans le widget de log ou dans la console si aucun widget.
+        """
         if self.output_widget:
             if reset:
                 self.output_widget.delete("1.0", "end")
@@ -29,6 +36,9 @@ class Account:
             print(message)
 
     def _add_history(self, operation, amount):
+        """
+        Ajoute une opération à l'historique avec la date et le montant.
+        """
         now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         self.historique.append({
             "date": now,
@@ -37,6 +47,9 @@ class Account:
         })
 
     def withdraw(self, amount):
+        """
+        Retrait d'argent avec vérification du solde et limite journalière.
+        """
         if amount > self.balance:
             self._log("⚠️ Fonds insuffisants.", reset=True)
         elif self.daily_withdrawn + amount > 1000:
@@ -46,9 +59,12 @@ class Account:
             self.daily_withdrawn += amount
             self._add_history("Retrait", -amount)
             self._log(f"💸 {amount}€ retirés. Nouveau solde: {self.balance}€", reset=True)
-            save_data()
+            save_data()  # Sauvegarde après chaque opération
 
     def deposit(self, amount):
+        """
+        Dépôt d'argent sur le compte.
+        """
         if amount <= 0:
             self._log("⚠️ Montant invalide.", reset=True)
         else:
@@ -58,6 +74,10 @@ class Account:
             save_data()
 
     def transfer_to(self, target_account, amount, external=False):
+        """
+        Virement vers un autre compte.
+        - external=True ajoute des frais de 0.5€
+        """
         frais = 0.5 if external else 0
         total_amount = amount + frais
         if amount <= 0:
@@ -81,12 +101,18 @@ class Account:
         save_data()
 
     def dump(self):
+        """
+        Affiche l'historique complet du compte.
+        """
         self._log(f"\n👤 {self.name}, Compte n°{self.account_number}, Solde: {self.balance}€", reset=True)
         for h in self.historique:
             self._log(f"{h['date']} | {h['operation']} | {h['montant']}€", reset=False)
 
 # === Sauvegarde / Chargement ===
 def save_data():
+    """
+    Sauvegarde tous les comptes et livrets dans un fichier JSON.
+    """
     data = {"accounts": {}, "livrets": {}}
     for num, acc in accounts.items():
         data["accounts"][num] = {
@@ -108,6 +134,9 @@ def save_data():
         json.dump(data, f, indent=4)
 
 def load_data():
+    """
+    Charge les comptes et livrets depuis le fichier JSON.
+    """
     global accounts, livrets
     if not os.path.exists(DATA_FILE):
         return
@@ -132,20 +161,23 @@ main_frame.pack(fill="both", expand=True)
 log_text = tk.Text(root, bg="black", fg="#C0A060",
                    font=("Consolas", 12), relief="flat")
 
-accounts = {}
-livrets = {}
+accounts = {}  # Dictionnaire de comptes courants
+livrets = {}   # Dictionnaire de livrets
 current_account = None
 selected_account = None
 
 # === Graphique des comptes ===
 def show_graph():
+    """
+    Affiche un graphique de l'évolution du solde du compte sélectionné.
+    """
     if not selected_account.historique:
         messagebox.showinfo("Info", "Aucune opération à afficher.")
         return
 
     labels = []
     values = []
-    solde = 0
+    solde = 2000  # Solde de départ pour le graphique (exemple)
     for i, h in enumerate(selected_account.historique):
         labels.append(f"Opération {i+1}")
         solde += h["montant"]
@@ -163,6 +195,9 @@ def show_graph():
 
 # === Pages ===
 def show_login_page():
+    """
+    Affiche la page d'accueil avec bouton de connexion.
+    """
     global current_account
     current_account = None
     for widget in main_frame.winfo_children():
@@ -173,6 +208,9 @@ def show_login_page():
     tk.Button(main_frame, text="Connexion", command=open_login, font=("Arial", 16, "bold"), bg="#C0A060", fg="black",relief="flat", width=15, height=2).pack(pady=20)
 
 def open_login():
+    """
+    Ouvre une fenêtre de connexion pour saisir le numéro et le mot de passe.
+    """
     login_win = tk.Toplevel(root)
     login_win.title("Connexion")
     login_win.geometry("400x250")
@@ -192,8 +230,8 @@ def open_login():
         pwd = entry_pwd.get()
         if num in accounts and accounts[num].password == pwd:
             current_account = accounts[num]
-            current_account.output_widget = log_text  # ⚡ lier log_text au compte courant
-            log_text.delete("1.0", "end")  # ⚡ vider les logs précédents
+            current_account.output_widget = log_text
+            log_text.delete("1.0", "end")
             messagebox.showinfo("Succès", f"Bienvenue {accounts[num].name} !")
             login_win.destroy()
             show_account_choice()
@@ -205,6 +243,9 @@ def open_login():
 
 # === Choix de compte ===
 def show_account_choice():
+    """
+    Affiche le choix entre Compte Courant et Livret A après connexion.
+    """
     global selected_account
     selected_account = None
     for widget in main_frame.winfo_children():
@@ -231,7 +272,7 @@ def show_account_choice():
     def open_courant():
         global selected_account
         selected_account = current_account
-        selected_account.output_widget = log_text  # ⚡ lier log_text
+        selected_account.output_widget = log_text
         log_text.delete("1.0", "end")
         open_dashboard()
 
@@ -261,6 +302,9 @@ def show_account_choice():
 
 # === Tableau de bord ===
 def open_dashboard():
+    """
+    Affiche le tableau de bord pour le compte sélectionné avec toutes les actions.
+    """
     for widget in main_frame.winfo_children():
         widget.destroy()
     log_text.pack(fill="both", expand=True, padx=10, pady=10)
@@ -273,16 +317,19 @@ def open_dashboard():
     btn_style = {"bg": "#C0A060", "fg": "black", "font": ("Arial", 14, "bold"),
                  "relief": "flat", "width": 22, "height": 2}
 
+    # Dépôt d'argent
     def deposit_money():
         amt = simpledialog.askfloat("Dépôt", "Montant à déposer :")
         if amt: 
             selected_account.deposit(float(amt))
 
+    # Retrait d'argent
     def withdraw_money():
         amt = simpledialog.askfloat("Retrait", "Montant à retirer :")
         if amt: 
             selected_account.withdraw(float(amt))
 
+    # Virement
     def transfer_money():
         transfer_win = tk.Toplevel(root)
         transfer_win.title("Virement")
@@ -324,12 +371,15 @@ def open_dashboard():
         tk.Button(transfer_win, text="🌍 Virement vers Compte Externe", command=virement_externe,
                   bg="#C0A060", fg="black", font=("Arial", 12, "bold"), relief="flat").pack(pady=10)
 
+    # Affichage de l'historique
     def show_history():
         selected_account.dump()
 
+    # Retour au choix de compte
     def quit_account():
         show_account_choice()
 
+    # Boutons principaux du tableau de bord
     tk.Button(main_frame, text="💰 Déposer", command=deposit_money, **btn_style).pack(pady=5)
     tk.Button(main_frame, text="💸 Retirer", command=withdraw_money, **btn_style).pack(pady=5)
     tk.Button(main_frame, text="🔄 Virement", command=transfer_money, **btn_style).pack(pady=5)
@@ -345,5 +395,5 @@ if not accounts:
     save_data()
 
 # === Lancement ===
-show_login_page()
-root.mainloop()
+show_login_page()  # Affiche la page de connexion
+root.mainloop()    # Lancement de la boucle Tkinter
