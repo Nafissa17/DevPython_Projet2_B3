@@ -1,12 +1,13 @@
 import tkinter as tk                       # Import de Tkinter pour l'interface graphique
 from tkinter import messagebox, simpledialog  # Boîtes de dialogue et messages
-import matplotlib.pyplot as plt           # Pour tracer les graphiques
-import datetime                            # Pour gérer les dates et heures
-import json                                # Pour la sauvegarde et le chargement en JSON
-import os                                  # Pour vérifier l'existence de fichiers
+import matplotlib.pyplot as plt             # Pour tracer les graphiques
+import json                                 # Pour la sauvegarde et le chargement en JSON
+import os                                   # Pour vérifier l'existence de fichiers
+from datetime import datetime               # Pour gérer les dates et heures
+import threading
 
 # === Fichier de données ===
-DATA_FILE = "accounts.json"               # Nom du fichier JSON pour stocker les comptes
+DATA_FILE = "accounts.json"                 # Nom du fichier JSON pour stocker les comptes
 
 # === Classe Compte ===
 class Account:
@@ -22,6 +23,7 @@ class Account:
         self.historique = []                  # Historique des opérations
         self.output_widget = output_widget    # Widget Text pour afficher les logs
         self.daily_withdrawn = 0              # Limite de retrait journalier
+        self.last_withdraw_date = datetime.now().date()  # Date du dernier retrait
 
     def _log(self, message, reset=False):
         """
@@ -39,7 +41,7 @@ class Account:
         """
         Ajoute une opération à l'historique avec la date et le montant.
         """
-        now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         self.historique.append({
             "date": now,
             "operation": operation,
@@ -50,6 +52,11 @@ class Account:
         """
         Retrait d'argent avec vérification du solde et limite journalière.
         """
+        # Réinitialiser la limite si on est sur un nouveau jour
+        if self.last_withdraw_date != datetime.now().date():
+            self.daily_withdrawn = 0
+            self.last_withdraw_date = datetime.now().date()
+
         if amount > self.balance:
             self._log("⚠️ Fonds insuffisants.", reset=True)
         elif self.daily_withdrawn + amount > 1000:
@@ -154,6 +161,7 @@ root = tk.Tk()
 root.title("Gestionnaire bancaire")
 root.geometry("900x650")
 root.configure(bg="black")
+root.resizable(False, False)  # Empêche le redimensionnement
 
 main_frame = tk.Frame(root, bg="black")
 main_frame.pack(fill="both", expand=True)
@@ -177,21 +185,33 @@ def show_graph():
 
     labels = []
     values = []
-    solde = 2000  # Solde de départ pour le graphique (exemple)
-    for i, h in enumerate(selected_account.historique):
-        labels.append(f"Opération {i+1}")
+
+    # Vérifie si le compte est un livret ou un compte courant
+    # Si c'est un livret (clé "LIV" dans le numéro), le solde de base est 0 €
+    # Sinon, pour un compte courant, le solde de base est 2000 €
+    if str(selected_account.account_number).startswith("LIV"):
+        solde = 0
+    else:
+        solde = 2000
+
+    # On reconstruit l'évolution du solde à partir de l'historique réel
+    for h in selected_account.historique:
+        labels.append(h["date"])  # On garde la vraie date de l’opération
         solde += h["montant"]
         values.append(solde)
 
-    plt.figure(figsize=(10,6))
+    # Création du graphique
+    plt.figure(figsize=(10, 6))
     plt.plot(labels, values, marker='o', label="Solde")
-    plt.title("Évolution du compte")
+    plt.title("Évolution du solde du compte")
     plt.ylabel("Montant (€)")
+    plt.xlabel("Date / Heure")
     plt.xticks(rotation=45)
     plt.grid(True)
     plt.legend()
     plt.tight_layout()
     plt.show()
+
 
 # === Pages ===
 def show_login_page():
@@ -204,8 +224,8 @@ def show_login_page():
         widget.destroy()
     log_text.pack_forget()
 
-    tk.Label(main_frame, text="🏦 Gestionnaire Bancaire",fg="#C0A060", bg="black", font=("Arial", 26, "bold")).pack(pady=40)
-    tk.Button(main_frame, text="Connexion", command=open_login, font=("Arial", 16, "bold"), bg="#C0A060", fg="black",relief="flat", width=15, height=2).pack(pady=20)
+    tk.Label(main_frame, text="🏦 Gestionnaire Bancaire", fg="#C0A060", bg="black", font=("Arial", 26, "bold")).pack(pady=40)
+    tk.Button(main_frame, text="Connexion", command=open_login, font=("Arial", 16, "bold"), bg="#C0A060", fg="black", relief="flat", width=15, height=2).pack(pady=20)
 
 def open_login():
     """
