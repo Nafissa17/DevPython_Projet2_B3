@@ -5,7 +5,6 @@ import datetime                            # Pour gérer les dates et heures
 import json                                # Pour la sauvegarde et le chargement en JSON
 import os                                  # Pour vérifier l'existence de fichiers
 
-
 # === Fichier de données ===
 DATA_FILE = "accounts.json"               # Nom du fichier JSON pour stocker les comptes
 
